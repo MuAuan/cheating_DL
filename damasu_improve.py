@@ -55,7 +55,7 @@ x_test = x_test.astype("float32") / 255
 
 y_train = keras.utils.to_categorical(y_train)
 y_test = keras.utils.to_categorical(y_test)
-"""
+
 # モデルの定義
 # A common Conv2D model
 model = Sequential()
@@ -228,7 +228,7 @@ plt.savefig('./cifar100/mnist_x_adv_G08_data.jpg')
 plt.close()
 
 
-
+"""
 
 #model_mnist
  (28, 28, 1)
@@ -392,7 +392,7 @@ plt.close()
  [  52   81  109  159   30   79   90   27  121  226]
  [  22   25    9   24  261   17    2  238   10  401]]
  
-
+"""
 
 model.load_weights('./cifar100/mnist_cnn_G08.hdf5')
 
@@ -520,7 +520,7 @@ plt.savefig('./cifar100/mnist_x_adv_adv_after_Tr_G08.jpg')
 plt.pause(1)
 plt.close()
 
-
+"""
  #Train[:50000]+ Noise
  #model_mnist
  (28, 28, 1)
@@ -788,7 +788,7 @@ class MNISTModel:
         return self.model(data)
 
 
-N = 1000
+N = 100
 
 model = Sequential()
 model.add(InputLayer(input_shape=(28,28,1)))
@@ -840,8 +840,8 @@ plt.close()
 import numpy as np
 from sklearn.metrics import confusion_matrix
 
-predict_classes = model.predict_classes(x_test[:1000,], batch_size=32)
-true_classes = np.argmax(y_test[:1000],1)
+predict_classes = model.predict_classes(x_test[:100,], batch_size=32)
+true_classes = np.argmax(y_test[:100],1)
 print(confusion_matrix(true_classes, predict_classes))
 
 prediction_titles = [title1(predict_classes, y_test, true_classes, i) for i in range(81)]
@@ -850,8 +850,8 @@ plt.savefig('./cifar100/mnist_L2_attack_x_test81_G08.jpg')
 plt.pause(1)
 plt.close()
 
-predict_classes = model.predict_classes(adv[:1000,], batch_size=32)
-true_classes = np.argmax(y_test[:1000],1)
+predict_classes = model.predict_classes(adv[:100,], batch_size=32)
+true_classes = np.argmax(y_test[:100],1)
 print(confusion_matrix(true_classes, predict_classes))
 
 prediction_titles = [title1(predict_classes, y_test, true_classes, i) for i in range(81)]
@@ -860,8 +860,8 @@ plt.savefig('./cifar100/mnist_L2_attack_adv81_G08.jpg')
 plt.pause(1)
 plt.close()
 
-x_train=adv[:1000]
-y_train=y_test[:1000]
+x_train=adv[:100]
+y_train=y_test[:100]
 
 model.load_weights('./cifar100/mnist_cnn_G08.hdf5')
 
@@ -899,8 +899,8 @@ with tf.Session() as sess:
     print(targets)
     adv_adv = attack.attack(inputs, targets)
 
-predict_classes = model.predict_classes(adv_adv[:1000,], batch_size=32)
-true_classes = np.argmax(y_test[:1000],1)
+predict_classes = model.predict_classes(adv_adv[:100,], batch_size=32)
+true_classes = np.argmax(y_test[:100],1)
 print(confusion_matrix(true_classes, predict_classes))
 
 prediction_titles = [title1(predict_classes, y_test, true_classes, i) for i in range(81)]
@@ -1048,5 +1048,16 @@ plt.close()
  [1 8 0 0 0 1 0 2 0 0]
  [0 1 0 0 0 0 0 0 0 0]
  [0 8 0 0 0 0 0 1 0 0]]
+ G08_advadv 1000
+ [[  0  85   0   0   0   0   0   0   0   0]
+ [  0 126   0   0   0   0   0   0   0   0]
+ [  0 116   0   0   0   0   0   0   0   0]
+ [  0 107   0   0   0   0   0   0   0   0]
+ [  0 110   0   0   0   0   0   0   0   0]
+ [  0  87   0   0   0   0   0   0   0   0]
+ [  0  87   0   0   0   0   0   0   0   0]
+ [  0  99   0   0   0   0   0   0   0   0]
+ [  0  89   0   0   0   0   0   0   0   0]
+ [  0  94   0   0   0   0   0   0   0   0]]
 """
 
