@@ -243,7 +243,7 @@ predictions = model.predict(preprocessed_input)
 #top_1 = decode_predictions(predictions)[0][0]
 print('Predicted class:')
 #print('%s (%s) with probability %.2f' % (top_1[1], top_1[0], top_1[2]))
-print('probability {}'.format(np.argmax(predictions)))
+print('Predicted class: {} Probability: {}'.format(np.argmax(predictions),predictions[np.argmax(predictions)]))
 
 predicted_class = np.argmax(predictions)
 cam, heatmap = grad_cam(model, preprocessed_input, predicted_class, "block5_conv3")
