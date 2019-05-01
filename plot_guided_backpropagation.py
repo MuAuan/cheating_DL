@@ -211,29 +211,30 @@ model.compile(loss='categorical_crossentropy',
 
 # モデルのサマリを表示
 model.summary()
-#model.load_weights('./cifar10/weights_cifar100_32.hdf5')
+#model.load_weights('./cifar10/cifar10_cnn64.hdf5')
 
 history = model.fit(x_train, y_train,
                     batch_size=32,
-                    epochs=1,
+                    epochs=10,
                     verbose=1,
                     validation_data=(x_test, y_test))
 
+model.save_weights('./cifar10/weights_cifar10_initial_64.hdf5', True) 
 
-checkpointer = ModelCheckpoint(filepath='./mnist/cifar10_cnn.hdf5', 
+checkpointer = ModelCheckpoint(filepath='./mnist/cifar10_cnn64.hdf5', 
                                monitor='val_acc', verbose=1, save_best_only=True,save_weights_only=True)
 early_stopping = EarlyStopping(monitor='val_acc', patience=25, mode='max',
                                verbose=1)
 lr_reduction = ReduceLROnPlateau(monitor='val_acc', patience=25,
                                factor=0.5, min_lr=0.00001, verbose=1)
-csv_logger = CSVLogger('./mnist/history_cifar10_cnn.log', separator=',', append=True)
+csv_logger = CSVLogger('./mnist/history_cifar10_cnn64.log', separator=',', append=True)
 #ch_layer = Check_layer()
 callbacks = [early_stopping, lr_reduction, csv_logger,checkpointer] #,ch_layer]
 
 #Learning ; Original x_train, y_train
 history = model.fit(x_train, y_train,
-          batch_size=128,
-          epochs=1,
+          batch_size=32,
+          epochs=100,
           callbacks=callbacks,          
           validation_split=0.2,
           shuffle=True) 
