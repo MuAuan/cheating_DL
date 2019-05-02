@@ -26,7 +26,7 @@ def normalize(x):
 
 def load_image(path):
     img_path = sys.argv[1]
-    img = image.load_img(img_path, target_size=(64, 64))  #(224, 224))
+    img = image.load_img(img_path, target_size=(128, 128))  #(224, 224))
     x = image.img_to_array(img)
     x = np.expand_dims(x, axis=0)
     x = preprocess_input(x)
@@ -112,7 +112,7 @@ def grad_cam(input_model, image, category_index, layer_name):
     for i, w in enumerate(weights):
         cam += w * output[:, :, i]
 
-    cam = cv2.resize(cam, (64, 64))  #(224, 224))
+    cam = cv2.resize(cam, (128, 128))  #(224, 224))
     cam = np.maximum(cam, 0)
     heatmap = cam / np.max(cam)
 
@@ -136,7 +136,7 @@ from keras.layers import Input, Dense
 (x_train, y_train), (x_test, y_test) = cifar10.load_data() #mnist.load_data() #cifar10.load_data()
 #x_train,y_train,x_test,y_test = getDataSet(img_rows,img_cols)
 num_classes=10
-img_rows,img_cols,ch=64,64,3
+img_rows,img_cols,ch=128,128,3
 
 X_train =[]
 X_test = []
@@ -211,23 +211,23 @@ model.compile(loss='categorical_crossentropy',
 
 # モデルのサマリを表示
 model.summary()
-#model.load_weights('./cifar10/cifar10_cnn64.hdf5')
+model.load_weights('./cifar10/cifar10_cnn64.hdf5')
 
 history = model.fit(x_train, y_train,
                     batch_size=32,
-                    epochs=10,
+                    epochs=1,
                     verbose=1,
                     validation_data=(x_test, y_test))
 
-model.save_weights('./cifar10/weights_cifar10_initial_64.hdf5', True) 
+model.save_weights('./cifar10/cifar10_cnn64.hdf5', True) 
 
-checkpointer = ModelCheckpoint(filepath='./mnist/cifar10_cnn64.hdf5', 
+checkpointer = ModelCheckpoint(filepath='./cifar10/cifar10_cnn64.hdf5', 
                                monitor='val_acc', verbose=1, save_best_only=True,save_weights_only=True)
 early_stopping = EarlyStopping(monitor='val_acc', patience=25, mode='max',
                                verbose=1)
 lr_reduction = ReduceLROnPlateau(monitor='val_acc', patience=25,
                                factor=0.5, min_lr=0.00001, verbose=1)
-csv_logger = CSVLogger('./mnist/history_cifar10_cnn64.log', separator=',', append=True)
+csv_logger = CSVLogger('./cifar10/history_cifar10_cnn64.log', separator=',', append=True)
 #ch_layer = Check_layer()
 callbacks = [early_stopping, lr_reduction, csv_logger,checkpointer] #,ch_layer]
 
@@ -236,14 +236,15 @@ history = model.fit(x_train, y_train,
           batch_size=32,
           epochs=100,
           callbacks=callbacks,          
-          validation_split=0.2,
+          validation_data=(x_test, y_test),
           shuffle=True) 
 
 predictions = model.predict(preprocessed_input)
 #top_1 = decode_predictions(predictions)[0][0]
-print('Predicted class:')
+index_pridict=np.argmax(predictions)
+print('Predicted class:',index_pridict)
 #print('%s (%s) with probability %.2f' % (top_1[1], top_1[0], top_1[2]))
-print('Predicted class: {} Probability: {}'.format(np.argmax(predictions),predictions[np.argmax(predictions)]))
+print(' Probability: {}'.format(predictions[0][index_pridict]))
 
 predicted_class = np.argmax(predictions)
 cam, heatmap = grad_cam(model, preprocessed_input, predicted_class, "block5_conv3")
