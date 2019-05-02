@@ -12,7 +12,7 @@ import keras
 import sys
 import cv2
 from keras.datasets import cifar10,cifar100
-
+import matplotlib.pyplot as plt
 
 def target_category_loss(x, category_index, nb_classes):
     return tf.multiply(x, K.one_hot([category_index], nb_classes))
@@ -97,7 +97,7 @@ def grad_cam(input_model, image, category_index, layer_name):
     target_layer = lambda x: target_category_loss(x, category_index, nb_classes)
     x = Lambda(target_layer, output_shape = target_category_loss_output_shape)(input_model.output)
     model = Model(inputs=input_model.input, outputs=x)
-    model.summary()
+    #model.summary()
     loss = K.sum(model.output)
     conv_output =  [l for l in model.layers if l.name is layer_name][0].output
     grads = normalize(_compute_gradients(loss, [conv_output])[0])
@@ -123,6 +123,7 @@ def grad_cam(input_model, image, category_index, layer_name):
 
     cam = cv2.applyColorMap(np.uint8(255*heatmap), cv2.COLORMAP_JET)
     cam = np.float32(cam) + np.float32(image)
+    #print(np.float32(cam) , np.float32(image))
     cam = 255 * cam / np.max(cam)
     return np.uint8(cam), heatmap
 
@@ -173,14 +174,6 @@ print(x_test.shape[0], 'test samples')
 y_train = keras.utils.to_categorical(y_train, num_classes)
 y_test = keras.utils.to_categorical(y_test, num_classes)
 
-
-preprocessed_input = load_image(sys.argv[1])
-#print(preprocessed_input)
-#model = VGG16(weights='imagenet')
-
-
-preprocessed_input=preprocessed_input.reshape(1,img_rows,img_cols,3)
-
 input_tensor = Input(shape=(img_rows,img_cols,3)) 
 vgg16 = VGG16(include_top=False, weights='imagenet', input_tensor=input_tensor)
 
@@ -212,7 +205,7 @@ model.compile(loss='categorical_crossentropy',
 # モデルのサマリを表示
 model.summary()
 model.load_weights('./cifar10/cifar10_cnn64.hdf5')
-
+#"""
 history = model.fit(x_train, y_train,
                     batch_size=32,
                     epochs=1,
@@ -238,21 +231,69 @@ history = model.fit(x_train, y_train,
           callbacks=callbacks,          
           validation_data=(x_test, y_test),
           shuffle=True) 
+#"""
+def plot_gallery(images, titles, fig, h, w, n_row=10, n_col=10):
+    """Helper function to plot a gallery of portraits"""
+    plt.figure(figsize=(0.9 * n_col, 1.2 * n_row))
+    plt.subplots_adjust(bottom=0, left=.01, right=.99, top=.90, hspace=.35)
+    for i in range(n_row*n_col):  #n_row*n_col
+        plt.subplot(n_row, n_col, i + 1)
+        plt.imshow(images[i].reshape((h, w, 3)), cmap=plt.cm.gray)
+        plt.title(titles[i], size=5)
+        plt.xticks(())
+        plt.yticks(())
+    plt.savefig("total_"+fig+".jpg")    
 
-predictions = model.predict(preprocessed_input)
-#top_1 = decode_predictions(predictions)[0][0]
-index_pridict=np.argmax(predictions)
-print('Predicted class:',index_pridict)
-#print('%s (%s) with probability %.2f' % (top_1[1], top_1[0], top_1[2]))
-print(' Probability: {}'.format(predictions[0][index_pridict]))
+# plot the result of the prediction on a portion of the test set
+def title(y_pred, props):
+    pred_name = y_pred  #target_names[y_pred[i]].rsplit(' ', 1)[-1]
+    prop = props   #.rsplit(' ', 1)[-1]
+    print(pred_name, prop)
+    return ['pred:{} Prob:{}'.format(pred_name, prop)]
 
-predicted_class = np.argmax(predictions)
-cam, heatmap = grad_cam(model, preprocessed_input, predicted_class, "block5_conv3")
-cv2.imwrite("gradcam.jpg", cam)
+from keras.preprocessing.image import array_to_img, img_to_array, load_img
 
-register_gradient()
-guided_model = modify_backprop(model, 'GuidedBackProp')
-saliency_fn = compile_saliency_function(guided_model)
-saliency = saliency_fn([preprocessed_input, 0])
-gradcam = saliency[0] * heatmap[..., np.newaxis]
-cv2.imwrite("guided_gradcam.jpg", deprocess_image(gradcam))
+images1=[]
+images2=[]
+images3=[]
+titles=[]
+for i in range(100):
+    print(i)
+    preprocessed_input = x_test[i]*255 #x_test[0]  #load_image(sys.argv[1])
+
+    preprocessed_input=preprocessed_input.reshape(img_rows,img_cols,3)
+    plt.imshow(array_to_img(preprocessed_input))
+    plt.pause(0.1)
+    plt.close()
+    preprocessed_input=preprocessed_input.reshape(1,img_rows,img_cols,3)
+
+    predictions = model.predict(preprocessed_input)
+    #top_1 = decode_predictions(predictions)[0][0]
+    index_predict=np.argmax(predictions)
+    print('Predicted class:',index_predict)
+    #print('%s (%s) with probability %.2f' % (top_1[1], top_1[0], top_1[2]))
+    print(' Probability: {}'.format(predictions[0][index_predict]))
+
+    predicted_class = np.argmax(predictions)
+    cam, heatmap = grad_cam(model, preprocessed_input, predicted_class, "block5_conv3")
+    cv2.imwrite("gradcam"+str(i)+".jpg", cam)
+    images2.append(cam)
+    titles1=title(index_predict,predictions[0][index_predict])
+    titles.append(titles1)
+
+    register_gradient()
+    guided_model = modify_backprop(model, 'GuidedBackProp')
+    saliency_fn = compile_saliency_function(guided_model)
+    saliency = saliency_fn([preprocessed_input, 0])
+    gradcam = saliency[0] * heatmap[..., np.newaxis]
+    cv2.imwrite("guided_gradcam"+str(i)+".jpg", deprocess_image(gradcam))
+    images3.append(deprocess_image(gradcam))
+
+#plot_gallery(images, titles, h, w, n_row=9, n_col=9,fig) 
+images1=x_test[:100]
+print(len(titles))
+plot_gallery(images1,titles,"test_image1",128,128, n_row=10, n_col=10)
+plot_gallery(images2,titles,"test_image2",128,128, n_row=10, n_col=10)
+plot_gallery(images3,titles,"test_image3",128,128, n_row=10, n_col=10)
+
+    
