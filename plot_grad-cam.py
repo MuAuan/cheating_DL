@@ -91,16 +91,6 @@ def deprocess_image(x):
     return x
 
 def grad_cam(input_model, image, category_index, layer_name):
-    """
-    model = Sequential()
-    model.add(input_model)
-
-    nb_classes = 1000
-    target_layer = lambda x: target_category_loss(x, category_index, nb_classes)
-    model.add(Lambda(target_layer,
-                     output_shape = target_category_loss_output_shape))
-    #model = Model(inputs=input_model.input, outputs=model.output)
-    """
     nb_classes = 1000
     target_layer = lambda x: target_category_loss(x, category_index, nb_classes)
     x = Lambda(target_layer, output_shape = target_category_loss_output_shape)(input_model.output)
@@ -108,7 +98,6 @@ def grad_cam(input_model, image, category_index, layer_name):
             
     loss = K.sum(model.layers[-1].output)
     conv_output =  [l for l in model.layers if l.name == layer_name][0].output  #is
-    #conv_output =  [l for l in model.layers[0].layers if l.name == layer_name][0].output #is
     grads = normalize(K.gradients(loss, conv_output)[0])
     gradient_function = K.function([model.layers[0].input], [conv_output, grads])
 
@@ -139,7 +128,6 @@ model = VGG16(weights='imagenet')
 model.summary()
 
 def preprocessed(guided_model,preprocessed_input,s):
-    #preprocessed_input = load_image(sys.argv[1])
     predictions = model.predict(preprocessed_input)
     top_1 = decode_predictions(predictions)[0][s]
     print('Predicted class:')
@@ -151,10 +139,6 @@ def preprocessed(guided_model,preprocessed_input,s):
     cam, heatmap = grad_cam(model, preprocessed_input, predicted_class, "block5_conv3")
     #cv2.imwrite("gradcam.jpg", cam)
 
-    #register_gradient()
-    #guided_model = modify_backprop(model, 'GuidedBackProp')
-    #guided_model.summary()
-
     saliency_fn = compile_saliency_function(guided_model)
     saliency = saliency_fn([preprocessed_input, 0])
     gradcam = saliency[0] * heatmap[..., np.newaxis]
@@ -164,9 +148,10 @@ def preprocessed(guided_model,preprocessed_input,s):
 s1=0
 size=(224,224)
 video_input = cv2.VideoCapture(0)
+#preprocessed_input = load_image(sys.argv[1])
 cv2.namedWindow("gradcam_", cv2.WINDOW_NORMAL) 
 #cv2.namedWindow("Guided_gradcam_", cv2.WINDOW_NORMAL) 
-input = load_image(sys.argv[1])
+#input = load_image(sys.argv[1])
 
 register_gradient()
 guided_model = modify_backprop(model, 'GuidedBackProp')
@@ -181,27 +166,20 @@ while(1):
     print(s)
     ret, frame = video_input.read()
     input= cv2.resize(frame, (480,480))
+    input = cv2.cvtColor(input, cv2.COLOR_BGR2RGB)
     ax1.imshow(input)
     ax1.set_title("original_")
-    #preprocessed_input = input
+
     preprocessed_input= cv2.resize(frame, size)
     preprocessed_input= np.expand_dims(preprocessed_input, axis=0)
     predictions, top_1, cam, gradcam = preprocessed(guided_model,preprocessed_input,s)
 
-    #cv2.imshow("gradcam_",cam)
     input= cv2.resize(cam, (480,480))
     ax2.imshow(input)
     ax2.set_title("gradcam_"+str(top_1[1])+"_"+ str(int(top_1[2]*1000)/10)+" %")
-    #ax1.pause(0.1)
-    #plt.close()
 
-    #imS_gradcam = cv2.resize(gradcam, size)
-    #cv2.imshow("Guided_gradcam_",gradcam)
     input= cv2.resize(deprocess_image(gradcam), (480,480))
     ax3.imshow(input)
-    #ax3.imshow(deprocess_image(gradcam))
     ax3.set_title("guided_gradcam_"+str(top_1[1])+"_"+ str(int(top_1[2]*1000)/10)+" %")
     plt.pause(0.1)
-    #plt.close()
-    #cv2.waitKey(0) 
     
