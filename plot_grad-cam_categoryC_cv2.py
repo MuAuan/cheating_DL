@@ -142,16 +142,12 @@ def preprocessed(guided_model,preprocessed_input,s):
 
 s1=0
 size=(224,224)
-video_input = cv2.VideoCapture(0)
+#video_input = cv2.VideoCapture(0)
 
 register_gradient()
 guided_model = modify_backprop(model, 'GuidedBackProp')
 #guided_model.summary()
-fig = plt.figure(figsize=(10, 10))
-ax1 = fig.add_subplot(2,2,1)
-ax2 = fig.add_subplot(2,2,2)
-ax3 = fig.add_subplot(2,2,4)
-#frame = cv2.imread("cat_dog.png") #""dog_cat.png")
+frame = cv2.imread("cat_dog.png")
 s = 0
 while (1):
     print(s)
