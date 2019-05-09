@@ -133,17 +133,13 @@ def preprocessed(guided_model,preprocessed_input,s):
     top_1 = decode_predictions(predictions)[0][s]
     print('Predicted class:')
     print('%s (%s) with probability %.2f' % (top_1[1], top_1[0], top_1[2]))
-    #print('Predicted:', decode_predictions(predictions, top=5)[0])
 
     predicted_class = predictions.argsort()[0][::-1][s]
-    #print(predicted_class)
     cam, heatmap = grad_cam(model, preprocessed_input, predicted_class, "block5_conv3")
-    #cv2.imwrite("gradcam.jpg", cam)
 
     saliency_fn = compile_saliency_function(guided_model)
     saliency = saliency_fn([preprocessed_input, 0])
     gradcam = saliency[0] * heatmap[..., np.newaxis]
-    #cv2.imwrite("guided_gradcam.jpg", deprocess_image(gradcam))
     return predictions, top_1, cam, gradcam
 
 def cv_fourcc(c1, c2, c3, c4):
@@ -165,8 +161,6 @@ def main():
     s1=0
     size=(224,224)
     video_input = cv2.VideoCapture(0)
-    #cv2.namedWindow("gradcam_", cv2.WINDOW_NORMAL) 
-    #cv2.namedWindow("Guided_gradcam_", cv2.WINDOW_NORMAL) 
 
     register_gradient()
     guided_model = modify_backprop(model, 'GuidedBackProp')
@@ -200,9 +194,6 @@ def main():
         ax3.imshow(input)
         ax3.set_title("guided_gradcam_"+str(top_1[1])+"_"+ str(int(top_1[2]*1000)/10)+" %")
         plt.pause(0.1)
-        #fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer);
-        #cv2.putText(frame, "FPS : " + str(int(1000*fps)), (100,50), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (50,170,50), 2);
-        #cv2.imshow("original",frame)
         fig1=plt.pause(0.001)
         #Gifアニメーションのために画像をためます
         plt.savefig("output/image"+str(s1)+".jpg")
