@@ -1,5 +1,8 @@
-from keras.applications.vgg16 import (
-    VGG16, preprocess_input, decode_predictions)
+#grad_cam
+#[keras-grad-cam/grad-cam.py](https://github.com/jacobgil/keras-grad-cam/blob/master/grad-cam.py)
+
+from keras.applications.vgg16 import (VGG16, preprocess_input, decode_predictions)
+from keras.models import Model
 from keras.preprocessing import image
 from keras.layers.core import Lambda
 from keras.models import Sequential
@@ -10,9 +13,10 @@ import numpy as np
 import keras
 import sys
 import cv2
-from keras.models import Model
+#from keras.applications.resnet50 import ResNet50, preprocess_input, decode_predictions
+#from keras.applications.vgg19 import VGG19, preprocess_input, decode_predictions
+#from keras.applications.inception_v3 import InceptionV3, preprocess_input, decode_predictions
 import matplotlib.pyplot as plt
-import time
 
 def target_category_loss(x, category_index, nb_classes):
     return tf.multiply(x, K.one_hot([category_index], nb_classes))
@@ -26,7 +30,7 @@ def normalize(x):
 
 def load_image(path):
     img_path = sys.argv[1]
-    img = image.load_img(img_path, target_size=(224, 224))
+    img = image.load_img(img_path, target_size=(224,224))  #299,299))  #224, 224))
     x = image.img_to_array(img)
     x = np.expand_dims(x, axis=0)
     x = preprocess_input(x)
@@ -40,16 +44,16 @@ def register_gradient():
             return grad * tf.cast(grad > 0., dtype) * \
                 tf.cast(op.inputs[0] > 0., dtype)
 
-def compile_saliency_function(model, activation_layer='block5_conv3'):
+def compile_saliency_function(model, activation_layer='block5_conv3'): #mixed10 'activation_49' add_16 add_32 activation_98
     input_img = model.input
     layer_dict = dict([(layer.name, layer) for layer in model.layers[1:]])
+    #print(layer_dict)
     layer_output = layer_dict[activation_layer].output
     max_output = K.max(layer_output, axis=3)
     saliency = K.gradients(K.sum(max_output), input_img)[0]
     return K.function([input_img, K.learning_phase()], [saliency])
 
 def modify_backprop(model, name):
-    
     g = tf.get_default_graph()
     with g.gradient_override_map({'Relu': name}):
 
@@ -63,9 +67,9 @@ def modify_backprop(model, name):
                 layer.activation = tf.nn.relu
 
         # re-instanciate a new model
-    
         new_model = VGG16(weights='imagenet')
-    
+        #new_model = ResNet50(weights='imagenet')
+        #new_model.summary()
     return new_model
 
 def deprocess_image(x):
@@ -91,16 +95,20 @@ def deprocess_image(x):
     x = np.clip(x, 0, 255).astype('uint8')
     return x
 
+def _compute_gradients(tensor, var_list):
+    grads = tf.gradients(tensor, var_list)
+    return [grad if grad is not None else tf.zeros_like(var) for var, grad in zip(var_list, grads)]
+
 def grad_cam(input_model, image, category_index, layer_name):
     nb_classes = 1000
     target_layer = lambda x: target_category_loss(x, category_index, nb_classes)
     x = Lambda(target_layer, output_shape = target_category_loss_output_shape)(input_model.output)
     model = Model(inputs=input_model.input, outputs=x)
-            
-    loss = K.sum(model.layers[-1].output)
+    #model.summary()
+    loss = K.sum(model.output)
     conv_output =  [l for l in model.layers if l.name == layer_name][0].output  #is
-    grads = normalize(K.gradients(loss, conv_output)[0])
-    gradient_function = K.function([model.layers[0].input], [conv_output, grads])
+    grads = normalize(_compute_gradients(loss, [conv_output])[0])
+    gradient_function = K.function([model.input], [conv_output, grads])
 
     output, grads_val = gradient_function([image])
     output, grads_val = output[0, :], grads_val[0, :, :, :]
@@ -111,7 +119,7 @@ def grad_cam(input_model, image, category_index, layer_name):
     for i, w in enumerate(weights):
         cam += w * output[:, :, i]
 
-    cam = cv2.resize(cam, (224, 224))
+    cam = cv2.resize(cam, (224,224))  #299,299))  #224, 224)) 
     cam = np.maximum(cam, 0)
     heatmap = cam / np.max(cam)
 
@@ -124,8 +132,11 @@ def grad_cam(input_model, image, category_index, layer_name):
     cam = np.float32(cam) + np.float32(image)
     cam = 255 * cam / np.max(cam)
     return np.uint8(cam), heatmap
-        
-def preprocessed(model,guided_model,preprocessed_input,s):
+
+model = VGG16(weights='imagenet')
+#model.summary()
+
+def preprocessed(guided_model,preprocessed_input,s):
     predictions = model.predict(preprocessed_input)
     top_1 = decode_predictions(predictions)[0][s]
     print('Predicted class:')
@@ -139,72 +150,38 @@ def preprocessed(model,guided_model,preprocessed_input,s):
     gradcam = saliency[0] * heatmap[..., np.newaxis]
     return predictions, top_1, cam, gradcam
 
-def cv_fourcc(c1, c2, c3, c4):
-        return (ord(c1) & 255) + ((ord(c2) & 255) << 8) + \
-            ((ord(c3) & 255) << 16) + ((ord(c4) & 255) << 24)
+s1=0
+size=(224,224)
+#video_input = cv2.VideoCapture(0)
 
-def main():
-    model = VGG16(weights='imagenet')
-    #model.summary()
-    OUT_FILE_NAME = "video.mp4"
-    FRAME_RATE=1
-    w=224 #1280
-    h=224 #960
-    out = cv2.VideoWriter(OUT_FILE_NAME, \
-              cv_fourcc('M', 'P', '4', 'V'), \
-              FRAME_RATE, \
-              (480, 480), \
-              True)
-    s1=0
-    size=(224,224)
-    #video_input = cv2.VideoCapture(0)
-    register_gradient()
-    guided_model = modify_backprop(model, 'GuidedBackProp')
-    #guided_model.summary()
-    fig = plt.figure(figsize=(10, 10))
-    ax1 = fig.add_subplot(2,2,1)
-    ax2 = fig.add_subplot(2,2,2)
-    ax3 = fig.add_subplot(2,2,4)
-    frame = cv2.imread("dog_cat.png") #""dog_cat.png")
-    s1 = 0
-    timer0=time.time()
-    while (1):
-        s =s1%5
-        print(s)
-        #ret, frame = video_input.read()
-        input= cv2.resize(frame, (480,480))
-        input = cv2.cvtColor(input, cv2.COLOR_BGR2RGB)
-        ax1.imshow(input)
-        ax1.set_title("original_"+str(s))
+register_gradient()
+guided_model = modify_backprop(model, 'GuidedBackProp')
+#guided_model.summary()
+fig = plt.figure(figsize=(10, 10))
+ax1 = fig.add_subplot(2,2,1)
+ax2 = fig.add_subplot(2,2,2)
+ax3 = fig.add_subplot(2,2,4)
+frame = cv2.imread("dog_cat_noframe.png")
 
-        preprocessed_input= cv2.resize(frame, size)
-        preprocessed_input= np.expand_dims(preprocessed_input, axis=0)
-        predictions, top_1, cam, gradcam = preprocessed(model,guided_model,preprocessed_input,s)
+for i in range(5):
+    s=i
+    input= cv2.resize(frame, (480,480))
+    input = cv2.cvtColor(input, cv2.COLOR_BGR2RGB)
+    ax1.imshow(input)
+    ax1.set_title("original_"+str(s))
 
-        input= cv2.resize(cam, (480,480))
-        ax2.imshow(input)
-        ax2.set_title("gradcam_"+str(top_1[1])+"_"+ str(int(top_1[2]*1000)/10)+" %")
+    preprocessed_input= cv2.resize(frame, size)
+    preprocessed_input= np.expand_dims(preprocessed_input, axis=0)
+    predictions, top_1, cam, gradcam = preprocessed(guided_model,preprocessed_input,s)
+    
+    input= cv2.resize(cam, (480,480))
+    ax2.imshow(input)
+    ax2.set_title("gradcam_"+str(top_1[1])+"_"+ str(int(top_1[2]*1000)/10)+" %")
 
-        input= cv2.resize(deprocess_image(gradcam), (480,480))
-        ax3.imshow(input)
-        ax3.set_title("guided_gradcam_"+str(top_1[1])+"_"+ str(int(top_1[2]*1000)/10)+" %")
-        plt.pause(1)
-        cv2.imshow("guided_gradcam_"+str(top_1[1])+"_"+ str(int(top_1[2]*1000)/10)+" %",input)
-        s1 += 1
-        plt.savefig("output/image"+str(s1)+".jpg")
-        dst = cv2.imread('output/image'+str(s1)+'.jpg')
-        img_dst = cv2.resize(dst, (int(480), 480))
-        out.write(img_dst)
-        k = cv2.waitKey(0)&0xff
-        if k == ord('q'):
-            cv2.destroyAllWindows()
-            break
-        else:
-            cv2.destroyAllWindows()
-        print(time.time()-timer0)
-        if time.time()-timer0>=120:
-            out.release()
-            break
-            
-if __name__ == '__main__':
-    main()
+    input= cv2.resize(deprocess_image(gradcam), (480,480))
+    ax3.imshow(input)
+    ax3.set_title("guided_gradcam_"+str(top_1[1])+"_"+ str(int(top_1[2]*1000)/10)+" %")
+    plt.pause(1)
+    
+    cv2.imwrite("gradcam"+str(i)+".jpg", cam)
+    cv2.imwrite("guided_gradcam"+str(i)+".jpg", deprocess_image(gradcam))
